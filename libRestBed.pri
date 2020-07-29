@@ -1,3 +1,3 @@
 
-INCLUDEPATH += restbed/
-LIBS += -L$$PWD/restbed/ -lrestbed
+INCLUDEPATH += $$PWD
+LIBS += -L$$PWD -lrestbed
