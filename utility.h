@@ -1,10 +1,12 @@
 #ifndef UTILITY_H
 #define UTILITY_H
 
-#include <string>
 #include "QStacker/qstacker.h"
-#include <map>
 #include "fmt/core.h"
+#include <map>
+#include <memory>
+#include <restbed>
+#include <string>
 
 std::string truncate(std::string original, uint lenght);
 
@@ -76,6 +78,6 @@ Type require(const std::multimap<std::string, std::string>& get, const std::stri
 	return t;
 }
 
-
+std::string getPost(const std::shared_ptr<restbed::Session> &session);
 
 #endif // UTILITY_H
