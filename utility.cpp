@@ -20,25 +20,11 @@ std::string demangle(const char* name) {
 	return (status == 0) ? res.get() : name;
 }
 
-std::string getPost(const std::shared_ptr<Session>& session) {
-	auto& request = session->get_request();
-	
-	//What is this ? Why not a simple get_post ???
+void error_handler(const int statusCode, const exception& exception, const shared_ptr<Session>& session) {
+	fprintf(stdout, "error: %s\n", exception.what());
+	// Place breakpoint here
 
-	auto content_length = request->get_header("Content-Length", 0);
-
-	string nonsensicalComplexity;
-
-	session->fetch(content_length, [request, &nonsensicalComplexity](const shared_ptr<Session> session, const Bytes& body) {
-		fprintf(stdout, "Inner debug %.*s\n", (int)body.size(), body.data());
-
-		(void)session;
-		if (body.empty()) {
-			return;
-		}
-		//Is not even working whitout explicit char* cast! why, just why!!!
-		nonsensicalComplexity.append((char*)body.data(), body.size());
-		session->close( OK, body, { { "Content-Length", ::to_string( body.size( ) ) }, { "Content-Type", "text/plain" } } );
-	});
-	return nonsensicalComplexity;
+	if (session && session->is_open()) {
+		session->close(statusCode, exception.what(), {{"Server", "Restbed"}});
+	}
 }

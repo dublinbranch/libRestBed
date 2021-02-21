@@ -78,6 +78,6 @@ Type require(const std::multimap<std::string, std::string>& get, const std::stri
 	return t;
 }
 
-std::string getPost(const std::shared_ptr<restbed::Session> &session);
+void error_handler(const int statusCode, const std::exception& exception, const std::shared_ptr<restbed::Session>& session);
 
 #endif // UTILITY_H
