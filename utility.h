@@ -5,6 +5,8 @@
 #include "QStacker/qstacker.h"
 #include <map>
 #include "fmt/core.h"
+#include "restbed"
+#include "exception"
 
 std::string truncate(std::string original, uint lenght);
 
@@ -76,6 +78,6 @@ Type require(const std::multimap<std::string, std::string>& get, const std::stri
 	return t;
 }
 
-
+void error_handler(const int statusCode, const std::exception& exception, const std::shared_ptr<restbed::Session>& session);
 
 #endif // UTILITY_H
