@@ -53,44 +53,44 @@ namespace restbed
                 //Definitions
                 
                 //Constructors
-                SocketImpl( const std::shared_ptr< asio::ip::tcp::socket >& socket, const std::shared_ptr< Logger >& logger = nullptr );
+                SocketImpl( asio::io_context& context, const std::shared_ptr< asio::ip::tcp::socket >& socket, const std::shared_ptr< Logger >& logger = nullptr );
 #ifdef BUILD_SSL
-                SocketImpl( const std::shared_ptr< asio::ssl::stream< asio::ip::tcp::socket > >& socket, const std::shared_ptr< Logger >& logger = nullptr );
+                SocketImpl( asio::io_context& context, const std::shared_ptr< asio::ssl::stream< asio::ip::tcp::socket > >& socket, const std::shared_ptr< Logger >& logger = nullptr );
 #endif
                 ~SocketImpl( void ) = default;
                 
                 //Functionality
-                void close( void );
+                virtual void close( void );
                 
-                bool is_open( void ) const;
+                virtual bool is_open( void ) const;
                 
-                bool is_closed( void ) const;
+                virtual bool is_closed( void ) const;
                 
-                void connect(  const std::string& hostname, const uint16_t port, const std::function< void ( const std::error_code& ) >& callback );
+                virtual void connect(  const std::string& hostname, const uint16_t port, const std::function< void ( const std::error_code& ) >& callback );
                 
-                void sleep_for( const std::chrono::milliseconds& delay, const std::function< void ( const std::error_code& ) >& callback );
+                virtual void sleep_for( const std::chrono::milliseconds& delay, const std::function< void ( const std::error_code& ) >& callback );
                 
-				void start_write(const Bytes& data, const std::function< void ( const std::error_code&, std::size_t ) >& callback);
+				virtual void start_write(const Bytes& data, const std::function< void ( const std::error_code&, std::size_t ) >& callback);
 				
-				size_t start_read( const std::shared_ptr< asio::streambuf >& data, const std::string& delimiter, std::error_code& error );
+				virtual size_t start_read( const std::shared_ptr< asio::streambuf >& data, const std::string& delimiter, std::error_code& error );
 				
-				size_t start_read( const std::shared_ptr< asio::streambuf >& data, const std::size_t length, std::error_code& error );
+				virtual size_t start_read( const std::shared_ptr< asio::streambuf >& data, const std::size_t length, std::error_code& error );
                 
-				void start_read(const std::size_t length, const std::function< void ( const Bytes ) > success, const std::function< void ( const std::error_code ) > failure );
+				virtual void start_read(const std::size_t length, const std::function< void ( const Bytes ) > success, const std::function< void ( const std::error_code ) > failure );
                 
-				void start_read( const std::shared_ptr< asio::streambuf >& data, const std::size_t length, const std::function< void ( const std::error_code&, std::size_t ) >& callback );
+				virtual void start_read( const std::shared_ptr< asio::streambuf >& data, const std::size_t length, const std::function< void ( const std::error_code&, std::size_t ) >& callback );
                 
-				void start_read(const std::shared_ptr< asio::streambuf >& data, const std::string& delimiter, const std::function< void ( const std::error_code&, std::size_t ) >& callback );
+				virtual void start_read(const std::shared_ptr< asio::streambuf >& data, const std::string& delimiter, const std::function< void ( const std::error_code&, std::size_t ) >& callback );
 
                 //Getters
-                std::string get_local_endpoint( void );
+                virtual std::string get_local_endpoint( void );
                 
-                std::string get_remote_endpoint( void );
+                virtual std::string get_remote_endpoint( void );
                 
                 //Setters
-                void set_timeout( const std::chrono::milliseconds& value );
+                virtual void set_timeout( const std::chrono::milliseconds& value );
 
-                void set_keep_alive( const uint32_t start, const uint32_t interval, const uint32_t cnt);
+                virtual void set_keep_alive( const uint32_t start, const uint32_t interval, const uint32_t cnt);
                 
                 //Operators
                 
@@ -103,6 +103,7 @@ namespace restbed
                 //Definitions
                 
                 //Constructors
+                SocketImpl( asio::io_context& context );
                 
                 //Functionality
                 

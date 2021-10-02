@@ -49,12 +49,12 @@ namespace restbed
 {
     namespace detail
     {
-        SocketImpl::SocketImpl( const shared_ptr< tcp::socket >& socket, const shared_ptr< Logger >& logger ) : m_error_handler( nullptr ),
+        SocketImpl::SocketImpl( asio::io_context& context, const shared_ptr< tcp::socket >& socket, const shared_ptr< Logger >& logger ) : m_error_handler( nullptr ),
             m_is_open( socket->is_open( ) ),
             m_pending_writes( ),
             m_logger( logger ),
             m_timeout( 0 ),
-            m_io_service( socket->get_io_service( ) ),
+            m_io_service( context ),
             m_timer( make_shared< asio::steady_timer >( m_io_service ) ),
             m_strand( make_shared< io_service::strand > ( m_io_service ) ),
             m_resolver( nullptr ),
@@ -66,12 +66,12 @@ namespace restbed
             return;
         }
 #ifdef BUILD_SSL
-        SocketImpl::SocketImpl( const shared_ptr< asio::ssl::stream< tcp::socket > >& socket, const shared_ptr< Logger >& logger ) : m_error_handler( nullptr ),
+        SocketImpl::SocketImpl( asio::io_context& context, const shared_ptr< asio::ssl::stream< tcp::socket > >& socket, const shared_ptr< Logger >& logger ) : m_error_handler( nullptr ),
             m_is_open( socket->lowest_layer( ).is_open( ) ),
             m_pending_writes( ),
             m_logger( logger ),
             m_timeout( 0 ),
-            m_io_service( socket->get_io_service( ) ),
+            m_io_service( context ),
             m_timer( make_shared< asio::steady_timer >( m_io_service ) ),
             m_strand( make_shared< io_service::strand > ( m_io_service ) ),
             m_resolver( nullptr ),
@@ -268,41 +268,65 @@ namespace restbed
             (void) cnt;
             (void) start;
             (void) interval;
+
+#ifdef BUILD_SSL
+            auto& socket = ( m_socket not_eq nullptr ) ? *m_socket : m_ssl_socket->lowest_layer( );
+#else
+            auto& socket = *m_socket;
+#endif
+
 #ifdef _WIN32
             std::string val = "1";
-            setsockopt(m_socket->native_handle(), SOL_SOCKET, SO_KEEPALIVE, val.c_str(), sizeof(val));
+            setsockopt(socket.native_handle(), SOL_SOCKET, SO_KEEPALIVE, val.c_str(), sizeof(val));
 
             // TCP_KEEPIDLE and TCP_KEEPINTVL are available since Win 10 version 1709
             // TCP_KEEPCNT since Win 10 version 1703
 #ifdef TCP_KEEPIDLE 
             std::string start_str = std::to_string(start);
-            setsockopt(m_socket->native_handle(), IPPROTO_TCP, TCP_KEEPIDLE,
+            setsockopt(socket.native_handle(), IPPROTO_TCP, TCP_KEEPIDLE,
                        start_str.c_str(), sizeof(start_str));
 #endif
 #ifdef TCP_KEEPINTVL
             std::string interval_str = std::to_string(interval);
-            setsockopt(m_socket->native_handle(), IPPROTO_TCP, TCP_KEEPINTVL,
+            setsockopt(socket.native_handle(), IPPROTO_TCP, TCP_KEEPINTVL,
                        interval_str.c_str(), sizeof(interval_str));
 #endif
 #ifdef TCP_KEEPCNT
             std::string cnt_str = std::to_string(cnt);
-            setsockopt(m_socket->native_handle(), IPPROTO_TCP, TCP_KEEPCNT,
+            setsockopt(socket.native_handle(), IPPROTO_TCP, TCP_KEEPCNT,
                        cnt_str.c_str(), sizeof(cnt_str));
 #endif
 #else
             uint32_t val = 1;
-            setsockopt(m_socket->native_handle(), SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(uint32_t));
 #ifdef __APPLE__
-            setsockopt(m_socket->native_handle(), IPPROTO_TCP, TCP_KEEPALIVE, &start, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), IPPROTO_TCP, TCP_KEEPALIVE, &start, sizeof(uint32_t));
 #elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) 
-            setsockopt(m_socket->native_handle(), IPPROTO_TCP, SO_KEEPALIVE, &start, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), IPPROTO_TCP, SO_KEEPALIVE, &start, sizeof(uint32_t));
 #else
             // Linux based systems
-            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPIDLE, &start, sizeof(uint32_t));
-            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPINTVL, &interval, sizeof(uint32_t));
-            setsockopt(m_socket->native_handle(), SOL_TCP, TCP_KEEPCNT, &cnt, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), SOL_TCP, TCP_KEEPIDLE, &start, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), SOL_TCP, TCP_KEEPINTVL, &interval, sizeof(uint32_t));
+            setsockopt(socket.native_handle(), SOL_TCP, TCP_KEEPCNT, &cnt, sizeof(uint32_t));
 #endif
 #endif
+        }
+
+        SocketImpl::SocketImpl( asio::io_context& context ) : m_error_handler( nullptr ),
+            m_is_open( false ),
+            m_pending_writes( ),
+            m_logger( nullptr ),
+            m_timeout( 0 ),
+            m_io_service( context ),
+            m_timer( make_shared< asio::steady_timer >( m_io_service ) ),
+            m_strand( make_shared< io_service::strand > ( m_io_service ) ),
+            m_resolver( nullptr ),
+            m_socket( nullptr )
+#ifdef BUILD_SSL
+            , m_ssl_socket( nullptr )
+#endif
+        {
+            return;
         }
         
         void SocketImpl::connection_timeout_handler( const shared_ptr< SocketImpl > socket, const error_code& error )
@@ -387,6 +411,13 @@ namespace restbed
 				}
             
 #endif
+			}
+			else
+			{
+				while(!m_pending_writes.empty())
+				{
+					m_pending_writes.pop();
+				}
 			}
         }
 

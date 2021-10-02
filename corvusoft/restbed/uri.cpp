@@ -100,23 +100,66 @@ namespace restbed
     
     string Uri::decode( const string& value )
     {
-        string result = String::empty;
-      
-        for ( string::size_type index = 0; index not_eq value.length( ); index++ )
+        static const signed char hex_to_dec[256] = 
         {
-            if ( value[ index ] == '%' && (isdigit(value[index +1]) != 0) && (isalnum(value[index +2]) != 0))
+            /*       0  1  2  3   4  5  6  7   8  9  A  B   C  D  E  F */
+            /* 0 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 1 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 2 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 3 */  0, 1, 2, 3,  4, 5, 6, 7,  8, 9,-1,-1, -1,-1,-1,-1,
+            
+            /* 4 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 5 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 6 */ -1,10,11,12, 13,14,15,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 7 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            
+            /* 8 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* 9 */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* A */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* B */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            
+            /* C */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* D */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* E */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1,
+            /* F */ -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1, -1,-1,-1,-1
+        };
+
+        if( value.size( ) < 3 ) {
+            return value;
+        }
+
+        string::size_type valuesize = value.size( );
+        
+        string result;
+        result.reserve( valuesize );
+
+        char c1 = 0;
+        char c2 = 0;
+        unsigned char cindex = 0;
+        
+        string::size_type index = 0;
+        for ( ; index < ( valuesize - 2 ); index++ )
+        {
+            if ( value[index] == '%' )
             {
-                char hexidecimal[ 3 ] = { 0 };
-                hexidecimal[ 0 ] = value[ ++index ];
-                hexidecimal[ 1 ] = value[ ++index ];
-                
-                char byte = static_cast< char >( strtol( hexidecimal, nullptr, 16 ) );
-                result.push_back( byte );
+                cindex = value[ index + 1 ];
+                c1 = hex_to_dec[ cindex ];
+
+                cindex = value[ index + 2 ];
+                c2 = hex_to_dec[ cindex ];
+                if ( c1 != -1 && c2 != -1 )
+                {
+                    result.push_back( ( c1 << 4 ) + c2 );
+                    index += 2;
+                    continue;
+                }
             }
-            else
-            {
-                result.push_back( value[ index ] );
-            }
+            result.push_back( value[ index ] );
+        }
+
+        for ( ; index < valuesize; index++ )
+        {
+            result.push_back( value[ index ] );
         }
         
         return result;
@@ -129,53 +172,45 @@ namespace restbed
     
     string Uri::encode( const Bytes& value )
     {
-        string encoded = String::empty;
-        
+        const bool unsafe_carachters[256] =
+        {
+            /*      0 1 2 3  4 5 6 7  8 9 A B  C D E F */
+            /* 0 */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* 1 */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* 2 */ 1,0,1,1, 1,1,1,0, 0,0,0,1, 1,0,0,1, 
+            /* 3 */ 0,0,0,0, 0,0,0,0, 0,0,1,1, 1,1,1,1, 
+            /* 4 */ 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 
+            /* 5 */ 0,0,0,0, 0,0,0,0, 0,0,0,1, 1,1,1,0, 
+            /* 6 */ 1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 
+            /* 7 */ 0,0,0,0, 0,0,0,0, 0,0,0,1, 1,1,0,1, 
+            /* 8 */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* 9 */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* A */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* B */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* C */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* D */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* E */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1, 
+            /* F */ 1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1
+        };
+        static const char dec_to_hex[] = "0123456789ABCDEF";
+
+        string encoded;
+        encoded.reserve( value.size() );
+
         for ( Byte character : value )
         {
-            char hexidecimal[ 4 ] = { 0 };
-            
-            switch ( character )
+            if ( unsafe_carachters[ character ] )
             {
-                //unsafe carachters
-                case ' ':
-                case '\"':
-                case '<':
-                case '>':
-                case '#':
-                case '%':
-                case '{':
-                case '}':
-                case '|':
-                case '\\':
-                case '^':
-                case '~':
-                case '[':
-                case ']':
-                case '`':
-                
-                //reserved characters
-                case '$':
-                case '&':
-                case '+':
-                case ',':
-                case '/':
-                case ':':
-                case ';':
-                case '=':
-                case '?':
-                case '@':
-                    snprintf( hexidecimal, sizeof( hexidecimal ), "%%%02X", character );
-                    encoded.append( hexidecimal );
-                    break;
-                    
-                default:
-                    hexidecimal[ 0 ] = character;
-                    encoded.append( hexidecimal );
-                    break;
+                encoded.push_back( '%' );
+                encoded.push_back( dec_to_hex[ character >> 4 ] );
+                encoded.push_back( dec_to_hex[ character & 0x0F ]);
+            }
+            else
+            {
+                encoded.push_back( character );
             }
         }
-        
+
         return encoded;
     }
     
@@ -326,7 +361,7 @@ namespace restbed
         {
             auto index = parameter.find_first_of( '=' );
             auto name = decode_parameter( parameter.substr( 0, index ) );
-            auto value = decode_parameter( parameter.substr( index + 1, parameter.length( ) ) );
+            auto value = (index not_eq string::npos) ? decode_parameter( parameter.substr( index + 1, parameter.length( ) ) ) : "";
             
             parameters.insert( make_pair( name, value ) );
         }
